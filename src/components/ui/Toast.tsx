@@ -12,7 +12,7 @@ interface ToastProps {
 const typeClasses: Record<ToastType, string> = {
   success: 'bg-green-600',
   error: 'bg-red-600',
-  info: 'bg-blue-600',
+  info: 'bg-violet-600',
 };
 
 const typeIcons: Record<ToastType, React.ReactNode> = {
