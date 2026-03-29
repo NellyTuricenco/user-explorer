@@ -9,6 +9,7 @@ interface UserFormProps {
   onSubmit: (data: UserFormData) => Promise<void>;
   submitLabel: string;
   isLoading?: boolean;
+  includePasswordFields?: boolean;
 }
 
 const DEFAULT_VALUES: UserFormData = {
@@ -18,6 +19,8 @@ const DEFAULT_VALUES: UserFormData = {
   username: '',
   age: '',
   phone: '',
+  password: '',
+  confirmPassword: '',
 };
 
 export function UserForm({
@@ -25,6 +28,7 @@ export function UserForm({
   onSubmit,
   submitLabel,
   isLoading = false,
+  includePasswordFields = false,
 }: UserFormProps) {
   const [values, setValues] = useState<UserFormData>({
     ...DEFAULT_VALUES,
@@ -39,20 +43,25 @@ export function UserForm({
         const value = e.target.value;
         setValues((prev) => ({ ...prev, [field]: value }));
         if (touched[field]) {
-          const fieldErrors = validateUserForm({ ...values, [field]: value });
+          const fieldErrors = validateUserForm(
+            { ...values, [field]: value },
+            { requirePassword: includePasswordFields }
+          );
           setErrors((prev) => ({ ...prev, [field]: fieldErrors[field] ?? '' }));
         }
       },
-    [values, touched]
+    [values, touched, includePasswordFields]
   );
 
   const handleBlur = useCallback(
     (field: keyof UserFormData) => () => {
       setTouched((prev) => ({ ...prev, [field]: true }));
-      const fieldErrors = validateUserForm(values);
+      const fieldErrors = validateUserForm(values, {
+        requirePassword: includePasswordFields,
+      });
       setErrors((prev) => ({ ...prev, [field]: fieldErrors[field] ?? '' }));
     },
-    [values]
+    [values, includePasswordFields]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,7 +72,9 @@ export function UserForm({
     );
     setTouched(allTouched);
 
-    const validationErrors = validateUserForm(values);
+    const validationErrors = validateUserForm(values, {
+      requirePassword: includePasswordFields,
+    });
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) return;
@@ -141,6 +152,33 @@ export function UserForm({
           hint="Optional"
         />
       </div>
+      {includePasswordFields && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input
+            label="Password"
+            type="password"
+            value={values.password}
+            onChange={handleChange('password')}
+            onBlur={handleBlur('password')}
+            error={errors.password}
+            required
+            autoComplete="new-password"
+            maxLength={64}
+            hint="At least 6 characters"
+          />
+          <Input
+            label="Confirm Password"
+            type="password"
+            value={values.confirmPassword}
+            onChange={handleChange('confirmPassword')}
+            onBlur={handleBlur('confirmPassword')}
+            error={errors.confirmPassword}
+            required
+            autoComplete="new-password"
+            maxLength={64}
+          />
+        </div>
+      )}
       <div className="flex justify-end pt-2">
         <Button type="submit" isLoading={isLoading} size="lg">
           {submitLabel}

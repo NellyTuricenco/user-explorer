@@ -4,8 +4,16 @@ const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 const PHONE_REGEX = /^[\d\s\-+()]{7,20}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_\-.]{3,30}$/;
 
-export function validateUserForm(data: UserFormData): ValidationErrors {
+interface ValidateUserFormOptions {
+  requirePassword?: boolean;
+}
+
+export function validateUserForm(
+  data: UserFormData,
+  options: ValidateUserFormOptions = {}
+): ValidationErrors {
   const errors: ValidationErrors = {};
+  const { requirePassword = false } = options;
 
   const firstName = data.firstName.trim();
   if (!firstName) {
@@ -52,6 +60,20 @@ export function validateUserForm(data: UserFormData): ValidationErrors {
   const phone = data.phone.trim();
   if (phone && !PHONE_REGEX.test(phone)) {
     errors.phone = 'Please enter a valid phone number';
+  }
+
+  if (requirePassword) {
+    if (!data.password) {
+      errors.password = 'Password is required';
+    } else if (data.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+
+    if (!data.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (data.confirmPassword !== data.password) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
   }
 
   return errors;

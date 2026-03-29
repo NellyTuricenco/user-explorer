@@ -23,6 +23,7 @@ export const usersService = {
       username: data.username.trim().toLowerCase(),
       age: parseInt(data.age, 10),
       phone: data.phone.trim(),
+      password: data.password,
     }),
 
   updateUser: (id: number, data: Partial<UserFormData>): Promise<User> =>

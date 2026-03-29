@@ -41,6 +41,8 @@ export interface UserFormData {
   username: string;
   age: string;
   phone: string;
+  password: string;
+  confirmPassword: string;
 }
 
 export interface ValidationErrors {

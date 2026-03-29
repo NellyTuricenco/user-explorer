@@ -47,6 +47,7 @@ export function AddUserPage() {
           onSubmit={handleSubmit}
           submitLabel="Create user"
           isLoading={isSubmitting}
+          includePasswordFields
         />
       </div>
     </div>
