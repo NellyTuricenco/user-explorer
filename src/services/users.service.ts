@@ -3,14 +3,45 @@ import type { User, UsersResponse, UserFormData } from '../types/user.types';
 
 const LIMIT = 12;
 
-export const usersService = {
-  getUsers: (skip = 0, limit = LIMIT): Promise<UsersResponse> =>
-    api.get<UsersResponse>(`/users?limit=${limit}&skip=${skip}`),
+interface UsersQuerySort {
+  sortBy?: string;
+  order?: 'asc' | 'desc';
+}
 
-  searchUsers: (query: string, skip = 0, limit = LIMIT): Promise<UsersResponse> =>
-    api.get<UsersResponse>(
-      `/users/search?q=${encodeURIComponent(query)}&limit=${limit}&skip=${skip}`
-    ),
+export const usersService = {
+  getUsers: (
+    skip = 0,
+    limit = LIMIT,
+    sort?: UsersQuerySort
+  ): Promise<UsersResponse> => {
+    const params = new URLSearchParams({
+      limit: String(limit),
+      skip: String(skip),
+    });
+    if (sort?.sortBy && sort?.order) {
+      params.set('sortBy', sort.sortBy);
+      params.set('order', sort.order);
+    }
+    return api.get<UsersResponse>(`/users?${params.toString()}`);
+  },
+
+  searchUsers: (
+    query: string,
+    skip = 0,
+    limit = LIMIT,
+    sort?: UsersQuerySort
+  ): Promise<UsersResponse> => {
+    const params = new URLSearchParams({
+      q: query,
+      limit: String(limit),
+      skip: String(skip),
+    });
+    if (sort?.sortBy && sort?.order) {
+      params.set('sortBy', sort.sortBy);
+      params.set('order', sort.order);
+    }
+    return api.get<UsersResponse>(`/users/search?${params.toString()}`);
+  },
 
   getUserById: (id: number): Promise<User> =>
     api.get<User>(`/users/${id}`),

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
+import { ChevronDownIcon } from '../../../components/ui/ChevronDownIcon';
 import { validateUserForm } from '../../../utils/validation';
 import type { UserFormData, ValidationErrors } from '../../../types/user.types';
 
@@ -205,20 +206,9 @@ export function UserForm({
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
-            <svg
+            <ChevronDownIcon
               className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
-              viewBox="0 0 20 20"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M6 8l4 4 4-4"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            />
           </div>
           {errors.gender && (
             <p className="text-xs text-red-600" role="alert">

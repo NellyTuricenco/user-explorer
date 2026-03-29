@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUsers } from '../features/users/useUsers';
 import { useDebounce } from '../hooks/useDebounce';
 import { UserCard } from '../features/users/components/UserCard';
@@ -9,10 +9,36 @@ import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Button } from '../components/ui/Button';
+import { ChevronDownIcon } from '../components/ui/ChevronDownIcon';
 import { Modal } from '../components/ui/Modal';
 import { useToastContext } from '../components/layout/Layout';
 
 const PAGE_SIZE = 12;
+type SortOption =
+  | 'default'
+  | 'name-asc'
+  | 'name-desc'
+  | 'age-asc'
+  | 'age-desc';
+
+function isSortOption(value: string | null): value is Exclude<SortOption, 'default'> {
+  return (
+    value === 'name-asc' ||
+    value === 'name-desc' ||
+    value === 'age-asc' ||
+    value === 'age-desc'
+  );
+}
+
+function toSortParams(
+  sort: SortOption
+): { sortBy: string; order: 'asc' | 'desc' } | undefined {
+  if (sort === 'name-asc') return { sortBy: 'firstName', order: 'asc' };
+  if (sort === 'name-desc') return { sortBy: 'firstName', order: 'desc' };
+  if (sort === 'age-asc') return { sortBy: 'age', order: 'asc' };
+  if (sort === 'age-desc') return { sortBy: 'age', order: 'desc' };
+  return undefined;
+}
 
 export function UsersPage() {
   const {
@@ -29,27 +55,37 @@ export function UsersPage() {
   } = useUsers();
   const { showToast } = useToastContext();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortParam = searchParams.get('sort');
+  const sortBy: SortOption = isSortOption(sortParam) ? sortParam : 'default';
   const navigate = useNavigate();
+  const prevQueryRef = useRef('');
 
   const debouncedQuery = useDebounce(query, 300);
 
   useEffect(() => {
-    if (debouncedQuery.trim()) {
-      searchUsers(debouncedQuery.trim(), 1);
+    const trimmedQuery = debouncedQuery.trim();
+    const isQueryChanged = prevQueryRef.current !== trimmedQuery;
+    const targetPage = isQueryChanged ? 1 : page;
+    const sortParams = toSortParams(sortBy);
+    if (trimmedQuery) {
+      searchUsers(trimmedQuery, targetPage, sortParams);
     } else {
-      fetchUsers(1);
+      fetchUsers(targetPage, sortParams);
     }
-  }, [debouncedQuery, fetchUsers, searchUsers]);
+    prevQueryRef.current = trimmedQuery;
+  }, [debouncedQuery, fetchUsers, searchUsers, sortBy]);
 
   const handlePageChange = useCallback(
     (newPage: number) => {
+      const sortParams = toSortParams(sortBy);
       if (debouncedQuery.trim()) {
-        searchUsers(debouncedQuery.trim(), newPage);
+        searchUsers(debouncedQuery.trim(), newPage, sortParams);
       } else {
-        fetchUsers(newPage);
+        fetchUsers(newPage, sortParams);
       }
     },
-    [debouncedQuery, fetchUsers, searchUsers]
+    [debouncedQuery, fetchUsers, searchUsers, sortBy]
   );
 
   const handleDelete = useCallback(
@@ -87,6 +123,39 @@ export function UsersPage() {
         isLoading={isLoading && query.length > 0}
         placeholder="Search by name, email, username..."
       />
+      <div className="flex items-center justify-end">
+        <div className="flex items-center gap-2">
+          <label htmlFor="users-sort" className="text-sm text-gray-600">
+            Sort by
+          </label>
+          <div className="relative">
+            <select
+              id="users-sort"
+              value={sortBy}
+              onChange={(e) => {
+                const nextSort = e.target.value as SortOption;
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  if (nextSort === 'default') {
+                    next.delete('sort');
+                  } else {
+                    next.set('sort', nextSort);
+                  }
+                  return next;
+                });
+              }}
+              className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="default">Default</option>
+              <option value="name-asc">Alphabetical (A-Z)</option>
+              <option value="name-desc">Alphabetical (Z-A)</option>
+              <option value="age-asc">Age (Youngest to oldest)</option>
+              <option value="age-desc">Age (Oldest to youngest)</option>
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          </div>
+        </div>
+      </div>
 
       {/* Content */}
       {isLoading ? (
@@ -98,8 +167,8 @@ export function UsersPage() {
           message={error}
           onRetry={() =>
             debouncedQuery.trim()
-              ? searchUsers(debouncedQuery.trim(), page)
-              : fetchUsers(page)
+              ? searchUsers(debouncedQuery.trim(), page, toSortParams(sortBy))
+              : fetchUsers(page, toSortParams(sortBy))
           }
         />
       ) : users.length === 0 ? (

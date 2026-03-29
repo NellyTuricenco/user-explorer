@@ -11,8 +11,8 @@ interface UseUsersState {
 }
 
 interface UseUsersReturn extends UseUsersState {
-  fetchUsers: (page?: number) => void;
-  searchUsers: (query: string, page?: number) => void;
+  fetchUsers: (page?: number, sort?: UsersSortParams) => void;
+  searchUsers: (query: string, page?: number, sort?: UsersSortParams) => void;
   setPage: (page: number) => void;
   deleteUser: (id: number) => void;
   query: string;
@@ -20,6 +20,10 @@ interface UseUsersReturn extends UseUsersState {
 }
 
 const PAGE_SIZE = 12;
+interface UsersSortParams {
+  sortBy?: string;
+  order?: 'asc' | 'desc';
+}
 
 export function useUsers(): UseUsersReturn {
   const [state, setState] = useState<UseUsersState>({
@@ -32,7 +36,7 @@ export function useUsers(): UseUsersReturn {
   const [query, setQuery] = useState('');
   const abortRef = useRef<AbortController | null>(null);
 
-  const fetchUsers = useCallback((page = 1) => {
+  const fetchUsers = useCallback((page = 1, sort?: UsersSortParams) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -41,7 +45,7 @@ export function useUsers(): UseUsersReturn {
     const skip = (page - 1) * PAGE_SIZE;
 
     usersService
-      .getUsers(skip, PAGE_SIZE)
+      .getUsers(skip, PAGE_SIZE, sort)
       .then((data: UsersResponse) => {
         if (!controller.signal.aborted) {
           setState({ users: data.users, total: data.total, isLoading: false, error: null, page });
@@ -58,31 +62,34 @@ export function useUsers(): UseUsersReturn {
       });
   }, []);
 
-  const searchUsers = useCallback((q: string, page = 1) => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+  const searchUsers = useCallback(
+    (q: string, page = 1, sort?: UsersSortParams) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
-    const skip = (page - 1) * PAGE_SIZE;
+      setState((prev) => ({ ...prev, isLoading: true, error: null }));
+      const skip = (page - 1) * PAGE_SIZE;
 
-    usersService
-      .searchUsers(q, skip, PAGE_SIZE)
-      .then((data: UsersResponse) => {
-        if (!controller.signal.aborted) {
-          setState({ users: data.users, total: data.total, isLoading: false, error: null, page });
-        }
-      })
-      .catch((err: Error) => {
-        if (!controller.signal.aborted) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: err.message ?? 'Failed to search users',
-          }));
-        }
-      });
-  }, []);
+      usersService
+        .searchUsers(q, skip, PAGE_SIZE, sort)
+        .then((data: UsersResponse) => {
+          if (!controller.signal.aborted) {
+            setState({ users: data.users, total: data.total, isLoading: false, error: null, page });
+          }
+        })
+        .catch((err: Error) => {
+          if (!controller.signal.aborted) {
+            setState((prev) => ({
+              ...prev,
+              isLoading: false,
+              error: err.message ?? 'Failed to search users',
+            }));
+          }
+        });
+    },
+    []
+  );
 
   const deleteUser = useCallback((id: number) => {
     setState((prev) => ({
