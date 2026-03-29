@@ -9,6 +9,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Button } from '../components/ui/Button';
 import { ChevronDownIcon } from '../components/ui/ChevronDownIcon';
+import { FiltersIcon } from '../components/ui/FiltersIcon';
+import { Drawer } from '../components/ui/Drawer';
 import { Modal } from '../components/ui/Modal';
 import { useToastContext } from '../components/layout/Layout';
 import { usersService } from '../services/users.service';
@@ -70,6 +72,28 @@ export function UsersPage() {
   const debouncedQuery = useDebounce(query, 300);
   const hasActiveFilters =
     genderFilter !== 'all' || roleFilter !== 'all' || ageFilter !== 'all';
+  const [showFiltersDrawer, setShowFiltersDrawer] = useState(false);
+  const [draftGenderFilter, setDraftGenderFilter] = useState(genderFilter);
+  const [draftRoleFilter, setDraftRoleFilter] = useState(roleFilter);
+  const [draftAgeFilter, setDraftAgeFilter] = useState<AgeFilter>(ageFilter);
+
+  const applyFilters = useCallback(
+    (nextGender: string, nextRole: string, nextAge: AgeFilter) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (nextGender === 'all') next.delete('gender');
+        else next.set('gender', nextGender);
+
+        if (nextRole === 'all') next.delete('role');
+        else next.set('role', nextRole);
+
+        if (nextAge === 'all') next.delete('age');
+        else next.set('age', nextAge);
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
 
   const loadUsers = useCallback(() => {
     setIsLoading(true);
@@ -124,6 +148,14 @@ export function UsersPage() {
   }, [debouncedQuery, genderFilter, roleFilter, ageFilter]);
 
   useEffect(() => {
+    if (!showFiltersDrawer) {
+      setDraftGenderFilter(genderFilter);
+      setDraftRoleFilter(roleFilter);
+      setDraftAgeFilter(ageFilter);
+    }
+  }, [genderFilter, roleFilter, ageFilter, showFiltersDrawer]);
+
+  useEffect(() => {
     if (page > totalPages) {
       setPage(totalPages);
     }
@@ -147,7 +179,7 @@ export function UsersPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex gap-4 items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -171,7 +203,7 @@ export function UsersPage() {
         isLoading={isLoading && query.length > 0}
         placeholder="Search by name, email, username..."
       />
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <label htmlFor="users-sort" className="text-sm text-gray-600">
             Sort by
@@ -203,88 +235,168 @@ export function UsersPage() {
             <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           </div>
         </div>
+        <div className="hidden flex-wrap items-center gap-3 lg:flex">
+          <div className="relative">
+            <select
+              value={genderFilter}
+              onChange={(e) => {
+                applyFilters(e.target.value, roleFilter, ageFilter);
+              }}
+              className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="all">All genders</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          </div>
+          <div className="relative">
+            <select
+              value={roleFilter}
+              onChange={(e) => {
+                applyFilters(genderFilter, e.target.value, ageFilter);
+              }}
+              className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="all">All roles</option>
+              <option value="admin">Admin</option>
+              <option value="moderator">Moderator</option>
+              <option value="user">User</option>
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          </div>
+          <div className="relative">
+            <select
+              value={ageFilter}
+              onChange={(e) => {
+                applyFilters(genderFilter, roleFilter, e.target.value as AgeFilter);
+              }}
+              className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="all">All ages</option>
+              <option value="18-25">18-25</option>
+              <option value="26-35">26-35</option>
+              <option value="36-50">36-50</option>
+              <option value="51+">51+</option>
+            </select>
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          </div>
+          <Button
+            variant="secondary"
+            disabled={!hasActiveFilters}
+            onClick={() => applyFilters('all', 'all', 'all')}
+          >
+            Reset filters
+          </Button>
+        </div>
+        <div className="lg:hidden">
+          <Button
+            variant={hasActiveFilters ? 'primary' : 'secondary'}
+            onClick={() => {
+              setDraftGenderFilter(genderFilter);
+              setDraftRoleFilter(roleFilter);
+              setDraftAgeFilter(ageFilter);
+              setShowFiltersDrawer(true);
+            }}
+          >
+            <FiltersIcon className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <div className="relative">
-          <select
-            value={genderFilter}
-            onChange={(e) => {
-              const nextValue = e.target.value;
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                if (nextValue === 'all') next.delete('gender');
-                else next.set('gender', nextValue);
-                return next;
-              });
-            }}
-            className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            <option value="all">All genders</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+      <Drawer
+        isOpen={showFiltersDrawer}
+        onClose={() => setShowFiltersDrawer(false)}
+        title="Filters"
+        className="lg:hidden"
+        footer={(
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setDraftGenderFilter('all');
+                setDraftRoleFilter('all');
+                setDraftAgeFilter('all');
+                applyFilters('all', 'all', 'all');
+                setShowFiltersDrawer(false);
+              }}
+            >
+              Reset filters
+            </Button>
+            <Button
+              onClick={() => {
+                applyFilters(draftGenderFilter, draftRoleFilter, draftAgeFilter);
+                setShowFiltersDrawer(false);
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+        )}
+      >
+        <div className="space-y-5">
+          <div>
+            <p className="mb-2 text-sm font-medium text-gray-700">Gender</p>
+            <div className="flex flex-wrap gap-2">
+              {['all', 'male', 'female', 'other'].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setDraftGenderFilter(value)}
+                  className={[
+                    'rounded-lg border px-3 py-2 text-sm transition-colors',
+                    draftGenderFilter === value
+                      ? 'border-violet-600 bg-violet-600 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-violet-50',
+                  ].join(' ')}
+                >
+                  {value === 'all' ? 'All genders' : value.charAt(0).toUpperCase() + value.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium text-gray-700">Role</p>
+            <div className="flex flex-wrap gap-2">
+              {['all', 'admin', 'moderator', 'user'].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setDraftRoleFilter(value)}
+                  className={[
+                    'rounded-lg border px-3 py-2 text-sm transition-colors',
+                    draftRoleFilter === value
+                      ? 'border-violet-600 bg-violet-600 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-violet-50',
+                  ].join(' ')}
+                >
+                  {value === 'all' ? 'All roles' : value.charAt(0).toUpperCase() + value.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium text-gray-700">Age</p>
+            <div className="flex flex-wrap gap-2">
+              {(['all', '18-25', '26-35', '36-50', '51+'] as AgeFilter[]).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setDraftAgeFilter(value)}
+                  className={[
+                    'rounded-lg border px-3 py-2 text-sm transition-colors',
+                    draftAgeFilter === value
+                      ? 'border-violet-600 bg-violet-600 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-violet-50',
+                  ].join(' ')}
+                >
+                  {value === 'all' ? 'All ages' : value}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="relative">
-          <select
-            value={roleFilter}
-            onChange={(e) => {
-              const nextValue = e.target.value;
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                if (nextValue === 'all') next.delete('role');
-                else next.set('role', nextValue);
-                return next;
-              });
-            }}
-            className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            <option value="all">All roles</option>
-            <option value="admin">Admin</option>
-            <option value="moderator">Moderator</option>
-            <option value="user">User</option>
-          </select>
-          <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-        </div>
-        <div className="relative">
-          <select
-            value={ageFilter}
-            onChange={(e) => {
-              const nextValue = e.target.value as AgeFilter;
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                if (nextValue === 'all') next.delete('age');
-                else next.set('age', nextValue);
-                return next;
-              });
-            }}
-            className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            <option value="all">All ages</option>
-            <option value="18-25">18-25</option>
-            <option value="26-35">26-35</option>
-            <option value="36-50">36-50</option>
-            <option value="51+">51+</option>
-          </select>
-          <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-        </div>
-        <Button
-          variant="secondary"
-          disabled={!hasActiveFilters}
-          onClick={() => {
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.delete('gender');
-              next.delete('role');
-              next.delete('age');
-              return next;
-            });
-          }}
-        >
-          Reset filters
-        </Button>
-      </div>
+      </Drawer>
 
       {/* Content */}
       {isLoading ? (
