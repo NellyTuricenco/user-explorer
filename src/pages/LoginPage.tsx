@@ -103,6 +103,13 @@ export function LoginPage() {
             <p className="mt-0.5">Username: <code className="font-mono">emilys</code></p>
             <p>Password: <code className="font-mono">emilyspass</code></p>
           </div>
+
+          <p className="mt-4 text-center text-sm text-gray-500">
+            Already have an account?{' '}
+            <Link to="/users/new" className="font-medium text-violet-600 hover:text-violet-700">
+              Sign up
+            </Link>
+          </p>
         </div>
 
         <p className="mt-4 text-center text-sm text-gray-500">
