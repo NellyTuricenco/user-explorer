@@ -8,6 +8,17 @@ export interface AuthUser {
   token: string;
 }
 
+export interface LoginResponse {
+  id: number;
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  image: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
 export interface LoginCredentials {
   username: string;
   password: string;
