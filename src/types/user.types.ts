@@ -21,6 +21,7 @@ export interface User {
   username: string;
   age: number;
   gender: 'male' | 'female' | string;
+  role?: 'admin' | 'moderator' | 'user' | string;
   phone: string;
   image: string;
   address: Address;

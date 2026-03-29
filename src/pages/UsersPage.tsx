@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useUsers } from '../features/users/useUsers';
 import { useDebounce } from '../hooks/useDebounce';
 import { UserCard } from '../features/users/components/UserCard';
 import { SearchBar } from '../features/users/components/SearchBar';
@@ -12,6 +11,8 @@ import { Button } from '../components/ui/Button';
 import { ChevronDownIcon } from '../components/ui/ChevronDownIcon';
 import { Modal } from '../components/ui/Modal';
 import { useToastContext } from '../components/layout/Layout';
+import { usersService } from '../services/users.service';
+import type { User } from '../types/user.types';
 
 const PAGE_SIZE = 12;
 type SortOption =
@@ -40,60 +41,107 @@ function toSortParams(
   return undefined;
 }
 
+type AgeFilter = 'all' | '18-25' | '26-35' | '36-50' | '51+';
+
+function matchesAgeFilter(age: number, filter: AgeFilter): boolean {
+  if (filter === '18-25') return age >= 18 && age <= 25;
+  if (filter === '26-35') return age >= 26 && age <= 35;
+  if (filter === '36-50') return age >= 36 && age <= 50;
+  if (filter === '51+') return age >= 51;
+  return true;
+}
+
 export function UsersPage() {
-  const {
-    users,
-    total,
-    isLoading,
-    error,
-    page,
-    fetchUsers,
-    searchUsers,
-    deleteUser,
-    query,
-    setQuery,
-  } = useUsers();
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
   const { showToast } = useToastContext();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const sortParam = searchParams.get('sort');
   const sortBy: SortOption = isSortOption(sortParam) ? sortParam : 'default';
+  const genderFilter = (searchParams.get('gender') ?? 'all').toLowerCase();
+  const roleFilter = (searchParams.get('role') ?? 'all').toLowerCase();
+  const ageFilter = (searchParams.get('age') as AgeFilter | null) ?? 'all';
   const navigate = useNavigate();
-  const prevQueryRef = useRef('');
 
   const debouncedQuery = useDebounce(query, 300);
+  const hasActiveFilters =
+    genderFilter !== 'all' || roleFilter !== 'all' || ageFilter !== 'all';
+
+  const loadUsers = useCallback(() => {
+    setIsLoading(true);
+    setError(null);
+    usersService
+      .getUsers(0, 0, toSortParams(sortBy))
+      .then((data) => {
+        setAllUsers(data.users);
+        setIsLoading(false);
+      })
+      .catch((err: Error) => {
+        setError(err.message ?? 'Failed to load users');
+        setIsLoading(false);
+      });
+  }, [sortBy]);
 
   useEffect(() => {
-    const trimmedQuery = debouncedQuery.trim();
-    const isQueryChanged = prevQueryRef.current !== trimmedQuery;
-    const targetPage = isQueryChanged ? 1 : page;
-    const sortParams = toSortParams(sortBy);
-    if (trimmedQuery) {
-      searchUsers(trimmedQuery, targetPage, sortParams);
-    } else {
-      fetchUsers(targetPage, sortParams);
+    loadUsers();
+  }, [loadUsers]);
+
+  const filteredUsers = useMemo(() => {
+    const q = debouncedQuery.trim().toLowerCase();
+    return allUsers.filter((user) => {
+      const matchesSearch =
+        q.length === 0 ||
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(q) ||
+        user.email.toLowerCase().includes(q) ||
+        user.username.toLowerCase().includes(q);
+
+      const matchesGender =
+        genderFilter === 'all' || user.gender.toLowerCase() === genderFilter;
+
+      const userRole = (user.role ?? '').toLowerCase();
+      const matchesRole = roleFilter === 'all' || userRole === roleFilter;
+
+      const matchesAge = matchesAgeFilter(user.age, ageFilter);
+
+      return matchesSearch && matchesGender && matchesRole && matchesAge;
+    });
+  }, [allUsers, debouncedQuery, genderFilter, roleFilter, ageFilter]);
+
+  const total = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedUsers = filteredUsers.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery, genderFilter, roleFilter, ageFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
     }
-    prevQueryRef.current = trimmedQuery;
-  }, [debouncedQuery, fetchUsers, searchUsers, sortBy]);
+  }, [page, totalPages]);
 
   const handlePageChange = useCallback(
     (newPage: number) => {
-      const sortParams = toSortParams(sortBy);
-      if (debouncedQuery.trim()) {
-        searchUsers(debouncedQuery.trim(), newPage, sortParams);
-      } else {
-        fetchUsers(newPage, sortParams);
-      }
+      setPage(newPage);
     },
-    [debouncedQuery, fetchUsers, searchUsers, sortBy]
+    []
   );
 
   const handleDelete = useCallback(
     (id: number) => {
-      deleteUser(id);
+      setAllUsers((prev) => prev.filter((u) => u.id !== id));
       showToast('User deleted successfully', 'success');
     },
-    [deleteUser, showToast]
+    [showToast]
   );
 
   return (
@@ -156,6 +204,87 @@ export function UsersPage() {
           </div>
         </div>
       </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="relative">
+          <select
+            value={genderFilter}
+            onChange={(e) => {
+              const nextValue = e.target.value;
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (nextValue === 'all') next.delete('gender');
+                else next.set('gender', nextValue);
+                return next;
+              });
+            }}
+            className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+          >
+            <option value="all">All genders</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+          <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        </div>
+        <div className="relative">
+          <select
+            value={roleFilter}
+            onChange={(e) => {
+              const nextValue = e.target.value;
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (nextValue === 'all') next.delete('role');
+                else next.set('role', nextValue);
+                return next;
+              });
+            }}
+            className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+          >
+            <option value="all">All roles</option>
+            <option value="admin">Admin</option>
+            <option value="moderator">Moderator</option>
+            <option value="user">User</option>
+          </select>
+          <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        </div>
+        <div className="relative">
+          <select
+            value={ageFilter}
+            onChange={(e) => {
+              const nextValue = e.target.value as AgeFilter;
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (nextValue === 'all') next.delete('age');
+                else next.set('age', nextValue);
+                return next;
+              });
+            }}
+            className="appearance-none rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-500"
+          >
+            <option value="all">All ages</option>
+            <option value="18-25">18-25</option>
+            <option value="26-35">26-35</option>
+            <option value="36-50">36-50</option>
+            <option value="51+">51+</option>
+          </select>
+          <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        </div>
+        <Button
+          variant="secondary"
+          disabled={!hasActiveFilters}
+          onClick={() => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('gender');
+              next.delete('role');
+              next.delete('age');
+              return next;
+            });
+          }}
+        >
+          Reset filters
+        </Button>
+      </div>
 
       {/* Content */}
       {isLoading ? (
@@ -165,24 +294,22 @@ export function UsersPage() {
       ) : error ? (
         <ErrorState
           message={error}
-          onRetry={() =>
-            debouncedQuery.trim()
-              ? searchUsers(debouncedQuery.trim(), page, toSortParams(sortBy))
-              : fetchUsers(page, toSortParams(sortBy))
-          }
+          onRetry={loadUsers}
         />
-      ) : users.length === 0 ? (
+      ) : pagedUsers.length === 0 ? (
         <EmptyState
           icon={
             <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
           }
-          title={query ? 'No users found' : 'No users yet'}
+          title={query || hasActiveFilters ? 'No users found' : 'No users yet'}
           description={
             query
               ? `No results for "${query}". Try a different search.`
-              : 'Get started by adding your first user.'
+              : hasActiveFilters
+                ? 'No users match the selected filters. Try resetting filters.'
+                : 'Get started by adding your first user.'
           }
           action={
             query ? (
@@ -199,7 +326,7 @@ export function UsersPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {users.map((user) => (
+            {pagedUsers.map((user) => (
               <UserCard
                 key={user.id}
                 user={user}
@@ -209,7 +336,7 @@ export function UsersPage() {
             ))}
           </div>
           <Pagination
-            page={page}
+            page={safePage}
             total={total}
             pageSize={PAGE_SIZE}
             onChange={handlePageChange}
