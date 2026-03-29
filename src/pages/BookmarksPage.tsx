@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useBookmarks } from '../features/bookmarks/BookmarksContext';
 import { usersService } from '../services/users.service';
@@ -13,30 +13,61 @@ export function BookmarksPage() {
   const { bookmarks } = useBookmarks();
   const { showToast } = useToastContext();
   const [users, setUsers] = useState<User[]>([]);
+  const usersRef = useRef<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
+
+  useEffect(() => {
+    setUsers((prev) => prev.filter((user) => bookmarks.has(user.id)));
+  }, [bookmarks]);
 
   useEffect(() => {
     const ids = Array.from(bookmarks);
     if (ids.length === 0) {
       setUsers([]);
       setIsLoading(false);
+      setError(null);
       return;
     }
 
+    const existingIds = new Set(usersRef.current.map((user) => user.id));
+    const missingIds = ids.filter((id) => !existingIds.has(id));
+    if (missingIds.length === 0) {
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
     setIsLoading(true);
     setError(null);
 
-    Promise.all(ids.map((id) => usersService.getUserById(id)))
+    Promise.all(missingIds.map((id) => usersService.getUserById(id)))
       .then((results) => {
-        setUsers(results);
+        if (cancelled) return;
+        const fetchedById = new Map(results.map((user) => [user.id, user]));
+        setUsers((prev) => {
+          const mergedById = new Map(prev.map((user) => [user.id, user]));
+          fetchedById.forEach((user, id) => mergedById.set(id, user));
+          return ids
+            .map((id) => mergedById.get(id))
+            .filter((user): user is User => user !== undefined);
+        });
         setIsLoading(false);
       })
       .catch((err: Error) => {
+        if (cancelled) return;
         setError(err.message ?? 'Failed to load bookmarked users');
         setIsLoading(false);
       });
-  }, []); 
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookmarks]);
 
   const handleDelete = (id: number) => {
     setUsers((prev) => prev.filter((u) => u.id !== id));
