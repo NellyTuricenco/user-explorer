@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useBookmarks } from '../features/bookmarks/BookmarksContext';
 import { usersService } from '../services/users.service';
