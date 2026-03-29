@@ -30,6 +30,17 @@ export function Pagination({ page, total, pageSize, onChange }: PaginationProps)
           variant="secondary"
           size="sm"
           disabled={page <= 1}
+          onClick={() => onChange(1)}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M20 19l-7-7 7-7" />
+          </svg>
+          First
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={page <= 1}
           onClick={() => onChange(page - 1)}
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,6 +60,17 @@ export function Pagination({ page, total, pageSize, onChange }: PaginationProps)
           Next
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onChange(totalPages)}
+        >
+          Last
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M4 5l7 7-7 7" />
           </svg>
         </Button>
       </div>
