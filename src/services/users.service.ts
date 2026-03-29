@@ -32,6 +32,10 @@ export const usersService = {
       ...(data.lastName !== undefined && { lastName: data.lastName.trim() }),
       ...(data.email !== undefined && { email: data.email.trim().toLowerCase() }),
       ...(data.phone !== undefined && { phone: data.phone.trim() }),
+      ...(data.gender !== undefined && { gender: data.gender.trim().toLowerCase() }),
+      ...(data.image !== undefined && { image: data.image.trim() }),
+      ...(data.password !== undefined &&
+        data.password.trim() !== '' && { password: data.password }),
     }),
 
   deleteUser: (id: number): Promise<User & { isDeleted: boolean; deletedOn: string }> =>

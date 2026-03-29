@@ -21,6 +21,8 @@ const DEFAULT_VALUES: UserFormData = {
   phone: '',
   password: '',
   confirmPassword: '',
+  gender: '',
+  image: '',
 };
 
 export function UserForm({
@@ -39,7 +41,7 @@ export function UserForm({
 
   const handleChange = useCallback(
     (field: keyof UserFormData) =>
-      (e: React.ChangeEvent<HTMLInputElement>) => {
+      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const value = e.target.value;
         setValues((prev) => ({ ...prev, [field]: value }));
         if (touched[field]) {
@@ -179,6 +181,63 @@ export function UserForm({
           />
         </div>
       )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="gender" className="text-sm font-medium text-gray-700">
+            Gender<span className="ml-1 text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <select
+              id="gender"
+              value={values.gender}
+              onChange={handleChange('gender')}
+              onBlur={handleBlur('gender')}
+              className={[
+                'w-full appearance-none rounded-lg border px-3 py-2 pr-12 text-sm text-gray-900',
+                'transition-colors duration-150',
+                'focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent',
+                errors.gender ? 'border-red-400 focus:ring-red-400' : 'border-gray-300',
+              ].join(' ')}
+              required
+            >
+              <option value="">Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+            <svg
+              className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+              viewBox="0 0 20 20"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6 8l4 4 4-4"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          {errors.gender && (
+            <p className="text-xs text-red-600" role="alert">
+              {errors.gender}
+            </p>
+          )}
+        </div>
+      </div>
+      <Input
+        label="Avatar Image URL"
+        type="url"
+        value={values.image}
+        onChange={handleChange('image')}
+        onBlur={handleBlur('image')}
+        error={errors.image}
+        autoComplete="url"
+        maxLength={300}
+        hint="Optional. Example: https://example.com/avatar.jpg"
+      />
       <div className="flex justify-end pt-2">
         <Button type="submit" isLoading={isLoading} size="lg">
           {submitLabel}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserForm } from '../features/users/components/UserForm';
 import { usersService } from '../services/users.service';

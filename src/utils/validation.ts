@@ -13,7 +13,7 @@ export function validateUserForm(
   options: ValidateUserFormOptions = {}
 ): ValidationErrors {
   const errors: ValidationErrors = {};
-  const { requirePassword = false } = options;
+  const { requirePassword = true } = options;
 
   const firstName = data.firstName.trim();
   if (!firstName) {
@@ -73,6 +73,25 @@ export function validateUserForm(
       errors.confirmPassword = 'Please confirm your password';
     } else if (data.confirmPassword !== data.password) {
       errors.confirmPassword = 'Passwords do not match';
+    }
+  }
+
+  const gender = data.gender.trim().toLowerCase();
+  if (!gender) {
+    errors.gender = 'Gender is required';
+  } else if (!['male', 'female', 'other'].includes(gender)) {
+    errors.gender = 'Please select a valid gender option';
+  }
+
+  const image = data.image.trim();
+  if (image) {
+    try {
+      const url = new URL(image);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        errors.image = 'Avatar URL must start with http:// or https://';
+      }
+    } catch {
+      errors.image = 'Please enter a valid avatar URL';
     }
   }
 

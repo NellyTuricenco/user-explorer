@@ -43,6 +43,8 @@ export interface UserFormData {
   phone: string;
   password: string;
   confirmPassword: string;
+  gender: string;
+  image: string;
 }
 
 export interface ValidationErrors {

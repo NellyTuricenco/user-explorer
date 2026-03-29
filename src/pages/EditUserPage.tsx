@@ -77,6 +77,8 @@ export function EditUserPage() {
               username: user.username,
               age: String(user.age),
               phone: user.phone ?? '',
+              gender: user.gender ?? '',
+              image: user.image ?? '',
             }}
             onSubmit={handleSubmit}
             submitLabel="Save changes"
